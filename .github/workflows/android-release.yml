@@ -1,0 +1,55 @@
+name: Build and publish Android release
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/android-release.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.4'
+          cache: true
+      - name: Resolve and verify
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Build release APK
+        run: flutter build apk --release
+      - name: Package verified source and checksums
+        run: |
+          mkdir -p release
+          cp build/app/outputs/flutter-apk/app-release.apk release/app-release.apk
+          git archive --format=zip HEAD -o release/QE190088.zip
+          cd release
+          sha256sum app-release.apk QE190088.zip > SHA256SUMS.txt
+          printf 'RecipeBox 1.0.0 for Android — QE190088\n\nBuilt from commit %s.\n\nFlutter analyzer and 9 automated tests passed. Download app-release.apk to install the app; QE190088.zip contains source code with pubspec.yaml at the ZIP root.\n\nChecksums are attached in SHA256SUMS.txt.\n' "$GITHUB_SHA" > notes.md
+      - name: Publish APK and source ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view v1.0.0 >/dev/null 2>&1; then
+            gh release upload v1.0.0 release/app-release.apk release/QE190088.zip release/SHA256SUMS.txt --clobber
+          else
+            gh release create v1.0.0 release/app-release.apk release/QE190088.zip release/SHA256SUMS.txt --target "$GITHUB_SHA" --title 'RecipeBox 1.0.0 (QE190088)' --notes-file release/notes.md
+          fi
