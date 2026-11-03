@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(data) { return signedIn() && data.userId == request.auth.uid; }
+    function valid(data, docId) {
+      return data.keys().hasAll(['id','userId','name','category','difficulty','cookTime','favorite','createdAt'])
+        && data.keys().hasOnly(['id','userId','name','category','difficulty','cookTime','servings','favorite','notes','createdAt'])
+        && data.name is string && data.name.trim().size() > 0 && data.name.size() <= 80
+        && docId == data.userId + '_' + data.name.trim().lower().toUtf8().toHexString()
+        && data.id == docId
+        && data.category in ['Breakfast','Lunch','Dinner','Dessert']
+        && data.difficulty in ['Easy','Medium','Hard']
+        && data.cookTime is int && data.cookTime >= 1 && data.cookTime <= 600
+        && (!('servings' in data) || (data.servings is int && data.servings >= 1 && data.servings <= 20))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 300))
+        && data.favorite is bool && data.createdAt is timestamp;
+    }
+    match /recipes/{docId} {
+      allow get: if signedIn() && ((resource == null && docId.matches(request.auth.uid + '_[0-9A-F]+')) || owner(resource.data));
+      allow list: if owner(resource.data);
+      allow create: if owner(request.resource.data) && valid(request.resource.data, docId);
+      allow update: if owner(resource.data) && owner(request.resource.data) && valid(request.resource.data, docId) && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if owner(resource.data);
+    }
+  }
+}

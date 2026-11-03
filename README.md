@@ -44,7 +44,7 @@ Generated artifacts, test logs, required screenshot checklist and final audit ar
 Run real emulator verification with:
 
 ```text
-flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_test.dart -d emulator-5554
+flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_test.dart -d emulator-5554 --dart-define="TEST_EMAIL=$env:RECIPEBOX_TEST_EMAIL" --dart-define="TEST_PASSWORD=$env:RECIPEBOX_TEST_PASSWORD" --dart-define="ISOLATION_EMAIL=$env:RECIPEBOX_ISOLATION_EMAIL"
 ```
 
-It creates a separate registration test account, signs in to the seeded grader account, exercises real CRUD and filters, captures actual UI PNGs, deletes only its temporary recipe, and checks a separate empty account. Backend checks in `outputs/test-backend.ps1` use public client APIs, never admin credentials. Test accounts are documented in `outputs/test-account.md`; they are for grading only.
+Set the three environment variables locally before running that PowerShell command. Test credentials are supplied at invocation and are not stored in the public source. The test creates a separate registration account, signs in to the seeded grader account, exercises real CRUD and filters, captures actual UI PNGs, deletes only its temporary recipe, and checks a separate empty account. Local backend checks in `outputs/test-backend.ps1` use public client APIs, never admin credentials. Grading credentials remain in the private local `outputs/test-account.md` and the submission report.
